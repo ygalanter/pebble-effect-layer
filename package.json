@@ -1,0 +1,30 @@
+{
+    "author": "Yuriy Galanter",
+    "dependencies": {},
+    "files": [
+        "dist.zip"
+    ],
+    "keywords": [
+        "pebble-package"
+    ],
+    "name": "pebble-effect-layer",
+    "pebble": {
+        "messageKeys": [],
+        "projectType": "package",
+        "resources": {
+            "media": []
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "aplite",
+            "basalt",
+            "chalk",
+            "diorite",
+            "emery"
+        ],
+        "watchapp": {
+            "watchface": false
+        }
+    },
+    "version": "1.1.3"
+}
