@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.4.0",
   "name": "pebble-effect-layer",
   "author": "Yuriy Galanter",
   "files": [
@@ -24,7 +24,8 @@
       "chalk",
       "diorite",
       "flint",
-      "emery"
+      "emery",
+      "gabbro"
     ]
   }
 }
