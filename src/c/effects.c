@@ -6,15 +6,20 @@
 // { ********* Graphics utility functions (probablu should be seaparated into anothe file?) *********
   
   
-// set pixel color at given coordinates 
+// set pixel color at given coordinates
 static void set_pixel(BitmapInfo bitmap_info, int y, int x, uint8_t color) {
-  
+
   if (bitmap_info.bitmap_format == GBitmapFormat1Bit || bitmap_info.bitmap_format == GBitmapFormat1BitPalette) { // for 1 bit bitmap on Aplite  --- verify if it needs to be different
-    
-    color = (color == GColorWhiteARGB8? 1: 0); // YG 2016-05-09: SDK3 update - White Color means 1 in 1bit bitmapsm; Black Means 0
-   
-    bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x / 8] ^= (-color ^ bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x / 8]) & (1 << (x % 8)); 
-    
+
+    uint8_t bit;
+    if (color == GColorLightGrayARGB8 || color == GColorDarkGrayARGB8) {
+      bit = (x + y) & 1; // checkerboard dither to approximate gray on 1-bit displays
+    } else {
+      bit = (color == GColorWhiteARGB8? 1: 0); // YG 2016-05-09: SDK3 update - White Color means 1 in 1bit bitmapsm; Black Means 0
+    }
+
+    bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x / 8] ^= (-bit ^ bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x / 8]) & (1 << (x % 8));
+
   } else { // othersise (assuming GBitmapFormat8Bit) going byte-wise
       
      #ifndef PBL_PLATFORM_CHALK
@@ -58,7 +63,11 @@ static uint8_t get_pixel(BitmapInfo bitmap_info, int y, int x) {
 static void set_line(BitmapInfo bitmap_info, int y, int x, int y2, int x2, uint8_t draw_color, uint8_t skip_color, uint8_t *visited) {
   bool yLonger = false; int shortLen=y2-y; int longLen=x2-x;
   uint8_t temp_pixel;  int temp_x, temp_y;
-  
+  #ifndef PBL_COLOR
+    // requested gray on a 1-bit display is dithered; black/white are drawn solid (no per-pixel flip)
+    bool dither = (draw_color == GColorLightGrayARGB8 || draw_color == GColorDarkGrayARGB8);
+  #endif
+
   GRect bounds = gbitmap_get_bounds(bitmap_info.bitmap);
   
   if (abs(shortLen)>abs(longLen)) {
@@ -81,8 +90,7 @@ static void set_line(BitmapInfo bitmap_info, int y, int x, int y2, int x2, uint8
             if (temp_pixel != skip_color && temp_pixel != draw_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color);
           #else
             if (((visited[temp_y*20 + temp_x/8] >> (temp_x % 8)) & 1) != 1) { // for Aplite first check if pixel isn't already marked as set in user-defined array
-              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color); // if pixel isn't of original color - set it
-              draw_color = (draw_color == GColorWhiteARGB8? GColorBlackARGB8: GColorWhiteARGB8); // reverse pixel for "lined" effect
+              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, dither ? ((temp_x + temp_y) & 1 ? GColorWhiteARGB8 : GColorBlackARGB8) : draw_color); // solid for black/white, checkerboard dither for gray
               visited[temp_y*20 + temp_x/8] ^= (-1 ^ visited[temp_y*20 + temp_x/8]) & (1 << (temp_x % 8)); // in Aplite - set the bit
             }
           #endif
@@ -100,8 +108,7 @@ static void set_line(BitmapInfo bitmap_info, int y, int x, int y2, int x2, uint8
             if (temp_pixel != skip_color && temp_pixel != draw_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color);
           #else
             if (((visited[temp_y*20 + temp_x/8] >> (temp_x % 8)) & 1) != 1) { // for Aplite first check if pixel isn't already marked as set in user-defined array
-              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color); // if pixel isn't of original color - set it
-              draw_color = (draw_color == GColorWhiteARGB8? GColorBlackARGB8: GColorWhiteARGB8); // reverse pixel for "lined" effect
+              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, dither ? ((temp_x + temp_y) & 1 ? GColorWhiteARGB8 : GColorBlackARGB8) : draw_color); // solid for black/white, checkerboard dither for gray
               visited[temp_y*20 + temp_x/8] ^= (-1 ^ visited[temp_y*20 + temp_x/8]) & (1 << (temp_x % 8));
             }
           #endif
@@ -121,12 +128,11 @@ static void set_line(BitmapInfo bitmap_info, int y, int x, int y2, int x2, uint8
             if (temp_pixel != skip_color && temp_pixel != draw_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color);
           #else
             if (((visited[temp_y*20 + temp_x/8] >> (temp_x % 8)) & 1) != 1) { // for Aplite first check if pixel isn't already marked as set in user-defined array
-              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color); // if pixel isn't of original color - set it
-              draw_color = (draw_color == GColorWhiteARGB8? GColorBlackARGB8: GColorWhiteARGB8); // reverse pixel for "lined" effect
+              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, dither ? ((temp_x + temp_y) & 1 ? GColorWhiteARGB8 : GColorBlackARGB8) : draw_color); // solid for black/white, checkerboard dither for gray
               visited[temp_y*20 + temp_x/8] ^= (-1 ^ visited[temp_y*20 + temp_x/8]) & (1 << (temp_x % 8));
             }
           #endif
-      }  
+      }
       j+=decInc;
     }
     return;
@@ -140,12 +146,11 @@ static void set_line(BitmapInfo bitmap_info, int y, int x, int y2, int x2, uint8
             if (temp_pixel != skip_color && temp_pixel != draw_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color);
           #else
             if (((visited[temp_y*20 + temp_x/8] >> (temp_x % 8)) & 1) != 1) { // for Aplite first check if pixel isn't already marked as set in user-defined array
-              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, draw_color); // if pixel isn't of original color - set it
-              draw_color = (draw_color == GColorWhiteARGB8? GColorBlackARGB8: GColorWhiteARGB8); // reverse pixel for "lined" effect
+              if (temp_pixel != skip_color) set_pixel(bitmap_info, temp_y, temp_x, dither ? ((temp_x + temp_y) & 1 ? GColorWhiteARGB8 : GColorBlackARGB8) : draw_color); // solid for black/white, checkerboard dither for gray
               visited[temp_y*20 + temp_x/8] ^= (-1 ^ visited[temp_y*20 + temp_x/8]) & (1 << (temp_x % 8));
             }
           #endif
-    }  
+    }
     j-=decInc;
   }
 
