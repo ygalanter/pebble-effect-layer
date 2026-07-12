@@ -20,17 +20,16 @@ static void set_pixel(BitmapInfo bitmap_info, int y, int x, uint8_t color) {
 
     bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x / 8] ^= (-bit ^ bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x / 8]) & (1 << (x % 8));
 
+  } else if (bitmap_info.bitmap_format == GBitmapFormat8BitCircular) {
+    // round displays (chalk, gabbro) store each row with its own valid x range;
+    // rows are not a uniform bytes_per_row stride like on rectangular displays
+    GBitmapDataRowInfo info = gbitmap_get_data_row_info(bitmap_info.bitmap, y);
+    if ((x >= info.min_x) && (x <= info.max_x)) info.data[x] = color;
+
   } else { // othersise (assuming GBitmapFormat8Bit) going byte-wise
-      
-     #ifndef PBL_PLATFORM_CHALK
-       bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x] = color;
-     #else
-       GBitmapDataRowInfo info = gbitmap_get_data_row_info(bitmap_info.bitmap, y);
-       if ((x >= info.min_x) && (x <= info.max_x)) info.data[x] = color;
-     #endif  
-  
+    bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x] = color;
   }
-      
+
 }
 
 // get pixel color at given coordinates 
@@ -41,17 +40,17 @@ static uint8_t get_pixel(BitmapInfo bitmap_info, int y, int x) {
     // YG 2016-05-09: SDK3 update - 1 means White color in 1bit bitmals; 2 means Black
     return ((bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x / 8] >> (x % 8)) & 1) == 1? GColorWhiteARGB8: GColorBlackARGB8;
     
+  } else if (bitmap_info.bitmap_format == GBitmapFormat8BitCircular) {
+    // round displays (chalk, gabbro) store each row with its own valid x range;
+    // rows are not a uniform bytes_per_row stride like on rectangular displays
+    GBitmapDataRowInfo info = gbitmap_get_data_row_info(bitmap_info.bitmap, y);
+    if ((x >= info.min_x) && (x <= info.max_x))
+      return info.data[x];
+    else
+      return -1;
+
   } else {  // othersise (assuming GBitmapFormat8Bit) going byte-wise
-    
-    #ifndef PBL_PLATFORM_CHALK
-       return bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x]; 
-     #else
-       GBitmapDataRowInfo info = gbitmap_get_data_row_info(bitmap_info.bitmap, y);
-       if ((x >= info.min_x) && (x <= info.max_x))
-         return info.data[x];
-       else 
-         return -1;
-     #endif  
+    return bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x];
   }
   
 } 
